@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/base_auth?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration
+      - org.springframework.boot.autoconfigure.r2dbc.R2dbcTransactionManagerAutoConfiguration
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB          # 单个文件最大大小
+      max-request-size: 100MB      # 整个请求最大大小
+      enabled: true                 # 启用文件上传（默认就是true）
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml   # 注意正确写法：指定 XML 映射文件位置
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 打印 SQL 日志（可选，方便调试）
+  global-config:
+    db-config:
+      id-type: auto                 # 全局主键策略（如自增）
+
+license:
+  private-key: "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDFIvbAgDBrMDfCeeKqNwUGQk6xRDn5cRbVpnekuUDKQDnfMs9hPEm4CQXnijM9VJ11nNmVYmhTnMq0qzKF3EKVfQmCtNdkcDId24szNHvoVsFakso87mPnP27pyhyRB97XhzlfmyUc+MudGckKqR9It4RMWtJk+3yb5vWhg3rGW0VZM9PTctIdroecw2h1N4fKzJZPE1OdreZFrBLQTkJVN+eQ/Y9el+BtqzvbAhJhbaSpIch1teOlFOvk3dVPCkPDuAOTamHB+T9RdA0jQW4DHJ20vD4pwi1QBGjitDDKIPvdnSmbJCZON+qrr4hwipvD8VqyLORIaxdMCgQjg0VZAgMBAAECggEAB/Fr1Q+NM+JwWrgHxaE8JPeKvWqA9f+kIoVntHXI6iVKl6dP0wyHcWB+sgi/3gig5A5m93WMu9K5Wax8t4dLkQOl3JP+CkRZhpm0GwLyO6c0OPqpZqlZ0eVcyhN8UW0qYc+HZKZnCUruhFTXxIPSOH85d8yghdRavdrhWonGSoPsiVtQu1KZSWlLV8xNmudmbKOndV0DB81ybLgrdp4Nx9/muMYH7qpRpSVkMJiXsc8K8w4heEEAoAxVIgktg3PrHODm7xPSr6NyxJ77cBG2v+NbCkcjLkkYvake6Sj2aIzBzllP41gqA1ICbe/m+waYVLcWKhn6jIb4us1jP3kwsQKBgQDQxsmur5pSq1qLjN5tT5/mFJsni62HQ8ZXtuEpT142osyswvFXyht0W9TdKxghy5+wWFvcrCDMtIk6kbad+NZnWHOUpO7x1UVxK8JW+GUeN5zGH/Wzvr++VwCgPHgwut3Mlnd3eURJEM2W23T7bfE+r6nn5EdFBxaU37FcWmJgqQKBgQDxuio/pD5tPm3xEuwH+/1SPFwan7lga0KarA+25+4IJB6oG4UgSBqfCvZ2iYtEcQnnK3P2V3FBWVMxB0+KjYeIJLyzqzZsA54Db97b3NP3tXt2VKPi4JQ6CgGI883WfhStJBC4YeDlX3EESS+j4mrkOrCr7I360iFVQX8gVAK9MQKBgCybvO4hQTUWvdMBd2kd0UmE753kf2Bef9uwDK4Z8kR0Ro1HXe/nFDSphnL3SUG3U1iHmKEu+hcjIAsupTlduNn+ETwafZ+YdSz4L58Llfd95HaEz6fnQur1hgG2yeuHkeqr37zcYVXHTFZGb9llJV3ChOgyY3QBTrbikO/ttAV5AoGBALwesKCEttyX2EHkAvKXxmaIePlzUnZaIyRyQWyMBPArA/y6JhmgY69gfbx0gIDMI/PXGlEdbhN4a8jdMqbWTCLEzGJbHWhkTEXKezrKGeBOSX4mksCPHGwqu1UUwB1sU7UHO0fzTG3VoAPA3SWCoMNrdXDnEPuhKrXJ2iCToOoRAoGAVKb+KLxQPE6RRfXCYTGUFlov3lWZu71H1u4TYgvu2iWZBaGI8Ep8cfteu588Ck62qwIMjmXFeVvDlBvvP5QGSuwEMLeesSYmNHymhokkZWWgz77zDl37wqjpZKq4N0L6tka5zGTgRNzYgMWvB9eHIAT/P/2iPXf+YH0t1ey9AeE="
+
+file:
+  upload-dir: ./uploads          # 文件上传存储目录
+  access-url-prefix: /files/     # 文件访问URL前缀

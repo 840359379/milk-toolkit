@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>授权文件管理</title>
+    <!-- Element Plus 样式（本地） -->
+    <link rel="stylesheet" href="/css/element-plus.css">
+</head>
+<body>
+<div id="app">
+    <el-container style="padding: 20px;">
+        <el-header style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>授权文件列表</h2>
+            <el-button type="primary" @click="openAddDialog">新增授权文件</el-button>
+        </el-header>
+        <el-main>
+            <!-- 文件列表表格 -->
+            <el-table :data="fileList" stripe style="width: 100%">
+                <el-table-column prop="id" label="ID" width="60"></el-table-column>
+                <el-table-column prop="customerName" label="客户名称" width="120"></el-table-column>
+                <el-table-column prop="customerMachineCode" label="机器码" width="180" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="licenseFileUrl" label="文件URL" width="200" show-overflow-tooltip>
+                    <template #default="{ row }">
+                        <el-link :href="row.licenseFileUrl" target="_blank" type="primary">查看链接</el-link>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="generateDate" label="生成日期" width="160">
+                    <template #default="{ row }">
+                        {{ formatDate(row.generateDate) }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="expiryDate" label="授权至" width="100"></el-table-column>
+                <el-table-column prop="userCount" label="用户数" width="80"></el-table-column>
+                <el-table-column label="操作" fixed="right" width="150">
+                    <template #default="{ row }">
+                        <el-button type="primary" size="small" @click="downloadFile(row)">下载</el-button>
+                        <el-button type="danger" size="small" @click="deleteFile(row)">删除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+
+            <!-- 分页 -->
+            <el-pagination
+                    v-model:current-page="page"
+                    v-model:page-size="pageSize"
+                    :total="total"
+                    :page-sizes="[10, 20, 50]"
+                    layout="total, sizes, prev, pager, next, jumper"
+                    @size-change="handleSizeChange"
+                    @current-change="handlePageChange"
+                    style="margin-top: 20px;">
+            </el-pagination>
+
+            <!-- 新增弹窗 -->
+            <el-dialog v-model="addDialogVisible" title="新增授权文件" width="500px" @close="resetAddForm">
+                <el-form :model="addForm" :rules="addRules" ref="addFormRef" label-width="100px">
+                    <el-form-item label="客户名称" prop="customerName">
+                        <el-input v-model="addForm.customerName" placeholder="请输入客户名称"></el-input>
+                    </el-form-item>
+                    <el-form-item label="机器码" prop="customerMachineCode">
+                        <el-input v-model="addForm.customerMachineCode" placeholder="请输入机器码"></el-input>
+                    </el-form-item>
+                    <el-form-item label="授权至日期" prop="expiryDate">
+                        <el-date-picker v-model="addForm.expiryDate" type="date" placeholder="选择日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%;"></el-date-picker>
+                    </el-form-item>
+                    <el-form-item label="用户数" prop="userCount">
+                        <el-input-number v-model="addForm.userCount" :min="0" :max="99999" style="width: 100%;"></el-input-number>
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <span class="dialog-footer">
+                        <el-button @click="addDialogVisible = false">取消</el-button>
+                        <el-button type="primary" @click="submitAddForm" :loading="submitting">提交</el-button>
+                    </span>
+                </template>
+            </el-dialog>
+        </el-main>
+    </el-container>
+</div>
+
+<!-- 引入 Vue 3、Element Plus 和 Axios（本地路径） -->
+<script src="/js/vue.global.js"></script>
+<script src="/js/element-plus.js"></script>
+<script src="/js/axios.min.js"></script>
+<script>
+    (function() {
+        // 确保 axios 已正确加载
+        const axios = window.axios;
+        if (!axios) {
+            console.error('错误：axios 库未正确加载，请检查 /js/axios.min.js 文件是否存在且内容正确。');
+            const errorDiv = document.createElement('div');
+            errorDiv.style.color = 'red';
+            errorDiv.style.padding = '20px';
+            errorDiv.innerText = '系统初始化失败：axios 库未加载。';
+            document.body.prepend(errorDiv);
+            return;
+        }
+
+        const { createApp, ref, onMounted } = Vue;
+
+        const app = createApp({
+            setup() {
+                // 响应式数据
+                const fileList = ref([]);
+                const page = ref(1);
+                const pageSize = ref(10);
+                const total = ref(0);
+
+                // 新增弹窗相关
+                const addDialogVisible = ref(false);
+                const addForm = ref({
+                    customerName: '',
+                    customerMachineCode: '',
+                    expiryDate: '',
+                    userCount: 0
+                });
+                const addRules = {
+                    customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
+                    customerMachineCode: [{ required: true, message: '请输入机器码', trigger: 'blur' }],
+                    expiryDate: [{ required: false, message: '请选择授权至日期', trigger: 'change' }],
+                    userCount: [{ required: false, message: '请输入用户数', trigger: 'blur' }]
+                };
+                const addFormRef = ref(null);
+                const submitting = ref(false);
+
+                // 获取文件列表
+                const fetchFileList = async () => {
+                    try {
+                        const response = await axios.get('/api/license/files/listFiles', {
+                            params: {
+                                page: page.value,
+                                size: pageSize.value
+                            }
+                        });
+                        if (response.status === 200) {
+                            fileList.value = response.data.records;
+                            total.value = response.data.total;
+                        }
+                    } catch (error) {
+                        ElementPlus.ElMessage.error('加载列表失败：' + (error.response?.data?.message || error.message));
+                    }
+                };
+
+                // 格式化日期时间
+                const formatDate = (dateStr) => {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    const seconds = String(date.getSeconds()).padStart(2, '0');
+                    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                };
+
+                // 下载文件
+                const downloadFile = (row) => {
+                    window.open(`/api/license/files/${row.id}/download`, '_blank');
+                };
+
+                // 删除文件
+                const deleteFile = (row) => {
+                    ElementPlus.ElMessageBox.confirm('确定删除该文件吗？', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(async () => {
+                        try {
+                            const response = await axios.post(`/api/license/files/delete`,{id:row.id});
+                            if (response.status === 204) {
+                                ElementPlus.ElMessage.success('删除成功');
+                                fetchFileList(); // 刷新列表
+                            }
+                        } catch (error) {
+                            ElementPlus.ElMessage.error('删除失败：' + (error.response?.data?.message || error.message));
+                        }
+                    }).catch(() => {});
+                };
+
+                // 分页大小变化
+                const handleSizeChange = (val) => {
+                    pageSize.value = val;
+                    fetchFileList();
+                };
+
+                // 页码变化
+                const handlePageChange = (val) => {
+                    page.value = val;
+                    fetchFileList();
+                };
+
+                // 打开新增弹窗
+                const openAddDialog = () => {
+                    addDialogVisible.value = true;
+                };
+
+                // 重置新增表单
+                const resetAddForm = () => {
+                    addForm.value = { customerName: '', customerMachineCode: '', expiryDate: '', userCount: 0 };
+                    addFormRef.value?.clearValidate();
+                };
+
+                // 提交新增
+                const submitAddForm = async () => {
+                    if (!addFormRef.value) return;
+                    await addFormRef.value.validate(async (valid) => {
+                        if (valid) {
+                            submitting.value = true;
+                            try {
+                                // 调用新增接口（假设 POST /api/license/files 接收 JSON 格式）
+                                // 如果后端要求 multipart/form-data，请改用 FormData
+                                const response = await axios.post('/api/license/files/addFile', addForm.value);
+                                if (response.status === 200) {
+                                    ElementPlus.ElMessage.success('新增成功');
+                                    addDialogVisible.value = false;
+                                    fetchFileList(); // 刷新列表
+                                }
+                            } catch (error) {
+                                ElementPlus.ElMessage.error('新增失败：' + (error.response?.data?.message || error.message));
+                            } finally {
+                                submitting.value = false;
+                            }
+                        }
+                    });
+                };
+
+                // 初始化加载
+                onMounted(() => {
+                    fetchFileList();
+                });
+
+                return {
+                    fileList,
+                    page,
+                    pageSize,
+                    total,
+                    formatDate,
+                    downloadFile,
+                    deleteFile,
+                    handleSizeChange,
+                    handlePageChange,
+                    // 新增相关
+                    addDialogVisible,
+                    addForm,
+                    addRules,
+                    addFormRef,
+                    submitting,
+                    openAddDialog,
+                    resetAddForm,
+                    submitAddForm
+                };
+            }
+        });
+
+        // 使用 Element Plus
+        app.use(ElementPlus);
+        app.mount('#app');
+    })();
+</script>
+</body>
+</html>
